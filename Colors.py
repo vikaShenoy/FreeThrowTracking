@@ -10,7 +10,7 @@ def pick_color(event, x, y, flags, param):
     if event == cv2.EVENT_LBUTTONDOWN:
         pixel = image_hsv[y, x]
 
-        #you might want to adjust the ranges(+-10, etc):
+        # you might want to adjust the ranges(+-10, etc):
         upper = np.array([pixel[0] + 70, pixel[1] + 70, pixel[2] + 40])
         lower = np.array([pixel[0] - 70, pixel[1] - 70, pixel[2] - 40])
         print(pixel, lower, upper)
