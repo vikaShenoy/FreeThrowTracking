@@ -3,7 +3,7 @@ import numpy
 import copy
 import math
 
-BOX_PADDING = -3
+BOX_PADDING = 0
 RADIUS = 20
 
 
@@ -133,8 +133,6 @@ def track_ball():
             p2 = (int(bbox[0] + bbox[2]), int(bbox[1] + bbox[3]))
             cv2.rectangle(frame, p1, p2, (255, 0, 0), 2, 1)
 
-        cv2.putText(frame, "FPS : " + str(int(fps)), (100, 50),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.75, (50, 170, 50), 2)
         cv2.imshow("Tracking", frame)
 
     # Extract keypoints
@@ -156,6 +154,10 @@ def track_ball():
     cv2.circle(initial_frame, peak, RADIUS, (0, 0, 255), 2)
     cv2.circle(initial_frame, release, RADIUS, (0, 0, 255), 2)
     cv2.circle(initial_frame, contact, RADIUS, (0, 0, 255), 2)
+    cv2.putText(initial_frame, f"Launch angle: {round(angle, 1)}deg",
+                (200, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 0, 0), 2)
+    cv2.putText(initial_frame, f"Velocity: {round(velocity, 1)}m/s",
+                (200, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 0, 0), 2)
     cv2.imshow("Ball positions", initial_frame)
     cv2.waitKey(0)
 
