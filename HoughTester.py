@@ -11,7 +11,7 @@ def nothing(x):
 
 
 # img_original = cv2.imread('../images/coloured_balls.jpg')
-cap = cv2.VideoCapture("./FreeThrow.mp4")
+cap = cv2.VideoCapture("./Data/FTVikas.mp4")
 ret, img_original = cap.read()
 
 blur = cv2.GaussianBlur(img_original, (9, 9), 0)

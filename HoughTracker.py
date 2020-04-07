@@ -3,8 +3,9 @@ import numpy
 import copy
 import math
 
-BOX_PADDING = 0
+BOX_PADDING = 2
 RADIUS = 20
+KEYPOINT_TOLERANCE = 20
 
 
 def ball_peak(shot_data):
@@ -12,27 +13,29 @@ def ball_peak(shot_data):
     return min(shot_data, key=lambda x: x[1])
 
 
-def ball_release(shot_data):
+def ball_release(shot_data, xpeak):
     """Find the (x, y) co-ordinates for the ball when its released by the player."""
-    # X is a max, y is a min
-    return max(shot_data, key=lambda x: x[0] - x[1])
+    (x1, y1) = max(shot_data, key=lambda x: x[0])
+    ymax = math.inf
+
+    result = None
+    for (x, y) in shot_data:
+        if (x1 - KEYPOINT_TOLERANCE <= x <= x1 + KEYPOINT_TOLERANCE) and y < ymax and x > xpeak:
+            ymax = y
+            result = (x, y)
+    return result
 
 
 def ball_contact(shot_data, xpeak):
     """Find the (x, y) co-ordinates for the ball when it hits the backboard/hoop for the first time."""
-    # Alg: want the co-ords where x is a min and y is a min. Find the minimum of the x * y.
-    (xmin, ymax) = min(shot_data, key=lambda x: x[0] + x[1])
-    height = ymax
+    (x1, y1) = min(shot_data, key=lambda x: x[0] + x[1])
+    xmax = -math.inf
 
-    result = ()
-    xmax = -10000
-    tolerance = 20
-
+    result = None
     for (x, y) in shot_data:
-        if (height - tolerance < y < height + tolerance) and x > xmax and x < xpeak:
+        if (y1 - KEYPOINT_TOLERANCE < y < y1 + KEYPOINT_TOLERANCE) and x > xmax and x < xpeak:
             xmax = x
             result = (x, y)
-
     return result
 
 
@@ -42,12 +45,12 @@ def detect_ball(frame):
     blur = cv2.GaussianBlur(frame, (9, 9), 0)
     gray = cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
     circles = cv2.HoughCircles(image=gray, method=cv2.HOUGH_GRADIENT,
-                               dp=1, minDist=200, param1=150, param2=20, minRadius=6, maxRadius=20)
+                               dp=1, minDist=200, param1=175, param2=20, minRadius=10, maxRadius=20)
 
-    # Copy the image for drawing on it
     if circles is not None:
         # Circles are 'doublewrapped' in an extra list? Not sure what's going on, this seems to work.
         circles = circles[0]
+        print(f"Circles found: {len(circles)}")
         # Taking the smallest circle here.
         (x, y, r) = min(circles, key=lambda x: math.pi * (x[2]**2))
         RADIUS = r
@@ -56,13 +59,13 @@ def detect_ball(frame):
         return (x-r, y-r, widthHeight, widthHeight)
     else:
         print("No circles found.")
-        return
+        return None
 
 
 def find_launch_angle(shot_data, p1, frame, n=3):
     """Take in shot data and return the angle at which the ball was released by the shooter."""
     # TODO - implement with a more sophisticated approach (if one exists)
-
+    # Testing
     p2 = ()
     # Find a frame slightly after the release frame to calculate the launch angle with
     for i, (x, y) in enumerate(shot_data):
@@ -72,6 +75,10 @@ def find_launch_angle(shot_data, p1, frame, n=3):
     xdiff = p1[0] - p2[0]
     ydiff = p1[1] - p2[1]
 
+    print(f"P1: {p1}")
+    print(f"p2: {p2}")
+    print(f"Xdiff: {xdiff}")
+    print(f"Ydiff: {ydiff}")
     # Testing
     # cv2.circle(frame, p1, RADIUS, (255, 0, 0), 2)
     # cv2.circle(frame, p2, RADIUS, (255, 0, 0), 2)
@@ -112,10 +119,13 @@ def track_ball(videoPath):
         print("Error reading inital frame")
         return
 
-    bbox1 = detect_ball(initial_frame)
+    bbox = detect_ball(initial_frame)
+
+    if not bbox:
+        return
 
     tracker = cv2.TrackerCSRT_create()
-    ok = tracker.init(initial_frame, bbox1)
+    ok = tracker.init(initial_frame, bbox)
 
     shot_data = []
 
@@ -137,12 +147,12 @@ def track_ball(videoPath):
 
     # Extract keypoints
     peak = ball_peak(shot_data)
-    release = ball_release(shot_data)
+    release = ball_release(shot_data, peak[0])
     contact = ball_contact(shot_data, peak[0])
 
     # Calculate the launch angle
     angle = find_launch_angle(
-        shot_data=shot_data, p1=release, frame=initial_frame, n=1)
+        shot_data=shot_data, p1=release, frame=initial_frame, n=10)
     print(f"Angle: {angle}")
 
     # Calculate the throwing velocity
@@ -164,4 +174,4 @@ def track_ball(videoPath):
 
 if __name__ == "__main__":
     # NOTE: main problem is that the hough circles require extremely finely tuned parameters.
-    track_ball(videoPath="./Data/FreeThrow.mp4")
+    track_ball(videoPath="./Data/FTVikas.mp4")
