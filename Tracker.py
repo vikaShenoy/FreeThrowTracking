@@ -5,7 +5,7 @@ import math
 
 BOX_PADDING = 2
 RADIUS = 20
-KEYPOINT_TOLERANCE = 20
+KEYPOINT_TOLERANCE = 10
 
 
 def ball_peak(shot_data):
@@ -105,13 +105,12 @@ def find_throw_time(shot_data, release, contact, frame_rate):
 def find_launch_velocity(throw_time, release_angle):
     """."""
     c = 4.9
-    return c * (throw_time / math.sin(release_angle))
+    return abs(c * (throw_time / math.sin(release_angle)))
 
 
 def track_ball(videoPath):
     """Track a ball in a video of a basketball shot. Draw a box around the ball."""
     # TODO - handle the case where camera is on the other side of the shooter
-    # CONSTRAINT: camera needs to be perpendicular to shot
     cap = cv2.VideoCapture(videoPath)
     frame_rate = cap.get(cv2.CAP_PROP_FPS)
     ok, initial_frame = cap.read()
@@ -119,7 +118,8 @@ def track_ball(videoPath):
         print("Error reading inital frame")
         return
 
-    bbox = detect_ball(initial_frame)
+    # bbox = hough_detector(initial_frame)
+    bbox = cv2.selectROI("Select", initial_frame)
 
     if not bbox:
         return
@@ -129,7 +129,7 @@ def track_ball(videoPath):
 
     shot_data = []
 
-    while cap.isOpened() and not (cv2.waitKey(1) & 0xFF == ord('q')):
+    while cap.isOpened() and not (cv2.waitKey(5) & 0xFF == ord('q')):
         ok, frame = cap.read()
         if not ok:
             break
@@ -174,4 +174,4 @@ def track_ball(videoPath):
 
 if __name__ == "__main__":
     # NOTE: main problem is that the hough circles require extremely finely tuned parameters.
-    track_ball(videoPath="./Data/FTVikas.mp4")
+    track_ball(videoPath="./Data/JAllen.mp4")
