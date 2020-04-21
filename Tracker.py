@@ -62,7 +62,7 @@ def detect_ball(frame):
         return None
 
 
-def find_launch_angle(shot_data, p1, frame, n=3):
+def calculate_launch_angle(shot_data, p1, frame, n=3):
     """Take in shot data and return the angle at which the ball was released by the shooter."""
     # TODO - implement with a more sophisticated approach (if one exists)
     # Testing
@@ -87,7 +87,7 @@ def find_launch_angle(shot_data, p1, frame, n=3):
     return math.degrees(math.atan(ydiff / xdiff))
 
 
-def find_throw_time(shot_data, release, contact, frame_rate):
+def calculate_throw_time(shot_data, release, contact, frame_rate):
     """Find how long it takes the ball to go from release to contact."""
     p1 = 0
     p2 = 0
@@ -102,7 +102,7 @@ def find_throw_time(shot_data, release, contact, frame_rate):
     return frame_diff / frame_rate
 
 
-def find_launch_velocity(throw_time, release_angle):
+def calculate_launch_velocity(throw_time, release_angle):
     """."""
     c = 4.9
     return abs(c * (throw_time / math.sin(release_angle)))
@@ -151,13 +151,14 @@ def track_ball(videoPath):
     contact = ball_contact(shot_data, peak[0])
 
     # Calculate the launch angle
-    angle = find_launch_angle(
+    angle = calculate_launch_angle(
         shot_data=shot_data, p1=release, frame=initial_frame, n=10)
     print(f"Angle: {angle}")
 
     # Calculate the throwing velocity
-    throw_time = find_throw_time(shot_data, release, contact, frame_rate)
-    velocity = find_launch_velocity(throw_time=throw_time, release_angle=angle)
+    throw_time = calculate_throw_time(shot_data, release, contact, frame_rate)
+    velocity = calculate_launch_velocity(
+        throw_time=throw_time, release_angle=angle)
     print(f"Velocity: {velocity}")
 
     # TESTING to see positions
@@ -173,5 +174,4 @@ def track_ball(videoPath):
 
 
 if __name__ == "__main__":
-    # NOTE: main problem is that the hough circles require extremely finely tuned parameters.
-    track_ball(videoPath="./Data/JAllen.mp4")
+    track_ball(videoPath="./Data/FTSteve.mp4")

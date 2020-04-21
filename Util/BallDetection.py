@@ -20,17 +20,67 @@ def hough_detector(frame):
         (x, y, r) = min(circles, key=lambda x: math.pi * (x[2]**2))
         RADIUS = r
         # Add some tolerance around the ball
-        widthHeight = (2*r) + BOX_PADDING
-        return (x-r, y-r, widthHeight, widthHeight)
+        width_height = (2*r) + BOX_PADDING
+        return (x-r, y-r, width_height, width_height)
     else:
         print("No circles found.")
         return None
 
 
-def hierarchical_detector(cap):
+def apply_morphological_operators(frame):
+    """."""
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    gray_blur = cv2.GaussianBlur(gray, (19, 19), 0)
+
+    block_size = 11
+    thresh = cv2.adaptiveThreshold(
+        gray_blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, block_size, 1)
+
+    kernel = np.ones((3, 3), np.uint8)
+
+    opening = cv2.morphologyEx(
+        thresh, cv2.MORPH_OPEN, kernel, iterations=2)
+    closing = cv2.morphologyEx(
+        opening, cv2.MORPH_CLOSE, kernel, iterations=4)
+
+    return closing
+
+
+def basketball_candidate(contour):
+    """Apply filters to a contour to detect whether it's a basketball."""
+    area = cv2.contourArea(contour)
+    if area <= 600 or area >= 1000:
+        return False
+    return True
+
+
+def morphological_detector(cap):
     """Take in a video and read frames until a ball which meets all the filters is detected.
     Return the bounding box around the detected ball."""
-    ok, frame = cap.read()
+    detected = False
+
+    valid_contours = []
+
+    while not detected:
+        print(1)
+        ok, frame = cap.read()
+
+        if not ok:
+            return None
+
+        filtered_frame = apply_morphological_operators(frame)
+
+        contours, hierarchy = cv2.findContours(
+            filtered_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        print(len(contours))
+        for contour in contours:
+            valid_contour = basketball_candidate(contour)
+            if valid_contour:
+                detected = True
+                valid_contours.append(contour)
+
+    cv2.drawContours(frame, valid_contours, -1, (255, 0, 0), 2)
+    show(frame)
 
     return (0, 0, 0, 0)
 
@@ -42,7 +92,7 @@ def show(img):
 
 
 if __name__ == "__main__":
-    filepath = "./Data/JAllen.mp4"
+    filepath = "./Data/FTVikas.mp4"
     cap = cv2.VideoCapture(filepath)
-    bbox = hierarchical_detector(cap)
+    bbox = morphological_detector(cap)
     print(f"Bbox: {bbox}")
