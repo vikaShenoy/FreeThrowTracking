@@ -4,10 +4,53 @@ import cv2
 import numpy as np
 import math
 
-from .Util import circle_to_contour, contour_to_box, morphological_transform
+from .Util import circle_to_contour, contour_to_box
 
 # How much tolerance to add around the detected basketball
 BOX_PADDING = 1
+
+# Hough parameter constants
+CANNY_THRESH = 175
+ACCUM_THRESH = 20
+MIN_RADIUS = 10
+MAX_RADIUS = 19
+MIN_DIST = 200
+
+# Valid contour constants
+MAX_AREA = math.pi * (MAX_RADIUS ** 2)
+MIN_AREA = math.pi * (MIN_RADIUS ** 2)
+MAX_CAREA = MAX_AREA + 100
+
+MIN_VALUE = 0
+MAX_VALUE = 150
+
+
+def morphological_transform(frame, opn_iter, cls_iter):
+    """Apply morphological operators to a frame to reduce noise.
+
+    Args:
+        frame: Image to reduce noise in.
+        opn_itr: Number of iterations of opening (erosion -> dilation) to apply.
+        cls_iter: Number of iterations of closing (dilation -> erosion) to apply.
+
+    Returns:
+        The frame with noise reduced.
+
+    """
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    gray_blur = cv2.GaussianBlur(gray, (19, 19), 0)
+
+    block_size = 11
+    thresh = cv2.adaptiveThreshold(
+        gray_blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, block_size, 1)
+
+    kernel = np.ones((3, 3), np.uint8)
+    opening = cv2.morphologyEx(
+        thresh, cv2.MORPH_OPEN, kernel, iterations=opn_iter)
+    closing = cv2.morphologyEx(
+        opening, cv2.MORPH_CLOSE, kernel, iterations=cls_iter)
+
+    return closing
 
 
 def hough_detector(frame, min_dist, canny_thresh, accum_thresh, min_radius, max_radius):
@@ -42,23 +85,20 @@ def hough_detector(frame, min_dist, canny_thresh, accum_thresh, min_radius, max_
         for circle in circles:
             contour = circle_to_contour(circle)
             valid = valid_contour(
-                contour, max_area=600, min_area=300, max_carea=700)
+                frame, contour, MAX_AREA, MIN_AREA, MAX_CAREA)
             if valid:
                 return contour_to_box(contour)
 
-        # (x, y, r) = min(circles, key=lambda x: math.pi * (x[2]**2))
-        # # cv2.circle(frame, (x, y), r, (255, 0, 0), 2)
-        # width_height = (2*r) + BOX_PADDING
-        # return (x-r, y-r, width_height, width_height)
     print("No valid circles found.")
     return None
 
 
-def valid_contour(contour, max_area, min_area, max_carea):
+def valid_contour(frame, contour, max_area, min_area, max_carea):
     """Apply filters to a contour to detect whether it's a basketball.
     Check for area of contours and area of circle enclosing the contour.
 
     Args:
+        frame: Image the contour comes from. Used for color checking.
         contour: Contour to check.
         max_area: If the area of the contour is larger than this, discard.
         min_area: If the area of the contour is smaller than this, discard.
@@ -73,15 +113,25 @@ def valid_contour(contour, max_area, min_area, max_carea):
     # Check area of the contour
     area = cv2.contourArea(contour)
     if not min_area <= area <= max_area:
+        print("Contour failed area check")
         return False
 
     # Check area of the min enclosing circle of the contour
     (cx, cy), radius = cv2.minEnclosingCircle(contour)
-    circleArea = radius * radius * math.pi
-    if circleArea > max_carea:
+    circle_area = radius * radius * math.pi
+    if circle_area > max_carea:
+        print("Contour failed circle area check")
         return False
 
-    # Color check?
+    # Color check
+    moments = cv2.moments(contour)
+    cX = int(moments["m10"] / moments["m00"])
+    cY = int(moments["m01"] / moments["m00"])
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    [h, s, v] = hsv[cY, cX]
+    if not MIN_VALUE <= v <= MAX_VALUE:
+        print("Contour failed color value check")
+        return False
 
     return True
 
@@ -101,40 +151,37 @@ def detect_ball(cap):
     valid_contours = []
     frame_num = 0
 
-    while not detected:
+    while True:
         ok, frame = cap.read()
         frame_num += 1
-
         if not ok:
             return None
 
         filtered_frame = morphological_transform(frame, 2, 3)
-
         contours, hierarchy = cv2.findContours(
             filtered_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # cv2.drawContours(frame, contours, -1, (255, 0, 0), 2)
+        # show(frame)
 
         print(
             f"Number of contours found in frame {frame_num}: {len(contours)}")
 
         # for contour in contours:
         #     valid = valid_contour(
-        #         contour, max_area=500, min_area=300, max_carea=600)
+        #         frame, contour, MAX_AREA, MIN_AREA, MAX_CAREA)
         #     if valid:
-        #         valid_contours.append(contour)
-        #         print(f"Contour detector successful on: {frame_num}")
-        #         detected = True
-        #         # return bbox
+        #         return contour_to_box(contour)
 
-        bbox = hough_detector(frame, min_dist=200, canny_thresh=175,
-                              accum_thresh=20, min_radius=10, max_radius=20)
+        bbox = hough_detector(frame, MIN_DIST, CANNY_THRESH,
+                              ACCUM_THRESH, MIN_RADIUS, MAX_RADIUS)
         if bbox:
             print(f"Hough successful on {frame_num}")
             return bbox
 
     # cv2.drawContours(frame, valid_contours, -1, (255, 0, 0), 2)
-    show(frame)
-
-    return (0, 0, 0, 0)
+    # show(frame)
+    # return (0, 0, 0, 0)
 
 
 def show(img):
