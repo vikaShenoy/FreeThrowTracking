@@ -11,8 +11,8 @@ def pick_color(event, x, y, flags, param):
         pixel = image_hsv[y, x]
 
         # you might want to adjust the ranges(+-10, etc):
-        upper = np.array([pixel[0] + 70, pixel[1] + 70, pixel[2] + 40])
-        lower = np.array([pixel[0] - 70, pixel[1] - 70, pixel[2] - 40])
+        upper = np.array([pixel[0] + 50, pixel[1] + 50, pixel[2] + 40])
+        lower = np.array([pixel[0] - 50, pixel[1] - 50, pixel[2] - 40])
         print(pixel, lower, upper)
 
         image_mask = cv2.inRange(image_hsv, lower, upper)
@@ -23,7 +23,7 @@ def main():
     import sys
     global image_hsv, pixel  # so we can use it in mouse callback
 
-    video = cv2.VideoCapture("./FreeThrow.mp4")
+    video = cv2.VideoCapture("./Data/FTJake.mp4")
     ok, frame = video.read()
     image_src = frame
     # image_src = cv2.imread("./Westbrook.jpg")

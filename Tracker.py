@@ -3,8 +3,11 @@ import numpy
 import copy
 import math
 
-BOX_PADDING = 2
+from Util.BallDetection import detect_ball
+
+# Radius for the circles to draw on the final image
 RADIUS = 20
+# Used to get the ball in the range of the release/peak/contact points
 KEYPOINT_TOLERANCE = 10
 
 
@@ -37,29 +40,6 @@ def ball_contact(shot_data, xpeak):
             xmax = x
             result = (x, y)
     return result
-
-
-def detect_ball(frame):
-    """Take in a frame from a video. Detect the basketball in the image and
-    return a bounding box around its location which can be used for tracking."""
-    blur = cv2.GaussianBlur(frame, (9, 9), 0)
-    gray = cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
-    circles = cv2.HoughCircles(image=gray, method=cv2.HOUGH_GRADIENT,
-                               dp=1, minDist=200, param1=175, param2=20, minRadius=10, maxRadius=20)
-
-    if circles is not None:
-        # Circles are 'doublewrapped' in an extra list? Not sure what's going on, this seems to work.
-        circles = circles[0]
-        print(f"Circles found: {len(circles)}")
-        # Taking the smallest circle here.
-        (x, y, r) = min(circles, key=lambda x: math.pi * (x[2]**2))
-        RADIUS = r
-        # Add some tolerance around the ball
-        widthHeight = (2*r) + BOX_PADDING
-        return (x-r, y-r, widthHeight, widthHeight)
-    else:
-        print("No circles found.")
-        return None
 
 
 def calculate_launch_angle(shot_data, p1, frame, n=3):
@@ -112,6 +92,11 @@ def track_ball(videoPath):
     """Track a ball in a video of a basketball shot. Draw a box around the ball."""
     # TODO - handle the case where camera is on the other side of the shooter
     cap = cv2.VideoCapture(videoPath)
+
+    bbox = detect_ball(cap)
+    if not bbox:
+        print("Error detecting ball")
+
     frame_rate = cap.get(cv2.CAP_PROP_FPS)
     ok, initial_frame = cap.read()
     if not ok:
@@ -119,7 +104,7 @@ def track_ball(videoPath):
         return
 
     # bbox = hough_detector(initial_frame)
-    bbox = cv2.selectROI("Select", initial_frame)
+    # bbox = cv2.selectROI("Select", initial_frame)
 
     if not bbox:
         return
@@ -129,7 +114,7 @@ def track_ball(videoPath):
 
     shot_data = []
 
-    while cap.isOpened() and not (cv2.waitKey(5) & 0xFF == ord('q')):
+    while cap.isOpened() and not (cv2.waitKey(1) & 0xFF == ord('q')):
         ok, frame = cap.read()
         if not ok:
             break
@@ -174,4 +159,4 @@ def track_ball(videoPath):
 
 
 if __name__ == "__main__":
-    track_ball(videoPath="./Data/FTSteve.mp4")
+    track_ball(videoPath="./Data/FTNash.mp4")
