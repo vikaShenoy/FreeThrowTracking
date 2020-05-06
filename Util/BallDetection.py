@@ -58,20 +58,15 @@ def morphological_transform(frame, opn_iter, cls_iter):
 
 
 def hough_detector(frame):
-    """Return the bounding box for a basketball in an image, if present.
+    """Use the Hough Circles algorithm to detect a basketball, if present.
+    Convert detected circles to contours and filter based on 
+    area and color to check for validity.
 
     Args:
         frame: Image to check for circles.
-        min_dist: Minimum distance between detected circles
-        canny_thresh: Internal threshold for the canny edge detector.
-        Higher of the two thresholds passed to the canny detector.
-        accum_thresh: threshold for center detection. Smaller values lead to more
-        false circles being detected.
-        min_radius: Min radius of detected circles.
-        max_radius: Max radius of detected circles.
 
     Returns:
-        Bounding box co-ordinates around the smallest detected circle.
+        Bounding box co-ordinates around a valid basketball.
         None if no circle can be found matching the input params.
 
     """
@@ -94,13 +89,44 @@ def hough_detector(frame):
                 show(frame)
                 return circle_to_box(circle, padding=BOX_PADDING)
 
-    print("No valid circles found.")
+    print("No valid circles found")
+    return None
+
+
+def contour_detector(frame):
+    """Find all contours in an image and check if any of them match
+    the features of a basketball - using area and color. 
+
+    Args:
+        frame: Image to find contours in.
+
+    Returns:
+        A bounding box around the valid basketball contour, if found.
+        None if no basketball could be detected. 
+
+    """
+
+    filtered_frame = morphological_transform(frame, 2, 3)
+    contours, hierarchy = cv2.findContours(
+        filtered_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    print(f"Contours found: {len(contours)}")
+    for contour in contours:
+        valid = valid_contour(frame, contour)
+        if valid:
+            cv2.drawContours(frame, [contour], -1, (255, 0, 0), 2)
+            show(frame)
+            (x, y), r = contour_to_circle(contour)
+            return circle_to_box((x, y, r), BOX_PADDING)
+
+    print("No valid contours found")
     return None
 
 
 def valid_contour(frame, contour):
     """Apply filters to a contour to detect whether it's a basketball.
-    Check for area of contours and area of circle enclosing the contour.
+    Check for area of contour, area of circle enclosing the contour, and
+    hsv color of the contour's centroid.
 
     Args:
         frame: Image the contour comes from. Used for color checking.
@@ -120,13 +146,13 @@ def valid_contour(frame, contour):
     if not MIN_CONTOUR_AREA <= contour_area <= MAX_CONTOUR_AREA:
         return False
 
-    # Check area of the min enclosing circle of the contour
+    # Check area of the circle
     (cx, cy), radius = cv2.minEnclosingCircle(contour)
     circle_area = radius * radius * math.pi
     if not MIN_CIRCLE_AREA <= circle_area <= MAX_CIRCLE_AREA:
         return False
 
-    # Color check
+    # Check color of the centroid of the contour
     moments = cv2.moments(contour)
     cX = int(moments["m10"] / moments["m00"])
     cY = int(moments["m01"] / moments["m00"])
@@ -144,13 +170,14 @@ def valid_contour(frame, contour):
 
 
 def detect_ball(cap):
-    """Take in a video and read frames until a ball which meets all the filters is detected.
+    """Take in a video and read frames until a valid basketball is detected.
 
     Args:
         cap: OpenCV video to read frames from.
 
     Returns:
         A bounding box around the detected basketball.
+        None if the basketball couldn't be detected.
 
     """
     detected = False
@@ -164,27 +191,17 @@ def detect_ball(cap):
         if not ok:
             return None
 
-        filtered_frame = morphological_transform(frame, 2, 3)
-        contours, hierarchy = cv2.findContours(
-            filtered_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
         # Hough detector
         bbox = hough_detector(frame)
         if bbox:
             print(f"Hough successful on {frame_num}")
             return bbox
 
-        print(
-            f"Number of contours found in frame {frame_num}: {len(contours)}")
-
         # Contour detector
-        for contour in contours:
-            valid = valid_contour(frame, contour)
-            if valid:
-                cv2.drawContours(frame, [contour], -1, (255, 0, 0), 2)
-                show(frame)
-                (x, y), r = contour_to_circle(contour)
-                return circle_to_box((x, y, r), BOX_PADDING)
+        bbox = contour_detector(frame)
+        if bbox:
+            print(f"Contour successful on {frame_num}")
+            return bbox
 
 
 def show(img):
