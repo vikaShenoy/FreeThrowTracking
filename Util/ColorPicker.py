@@ -23,7 +23,7 @@ def main():
     import sys
     global image_hsv, pixel  # so we can use it in mouse callback
 
-    video = cv2.VideoCapture("./Data/FTJake.mp4")
+    video = cv2.VideoCapture("./Data/JAllen.mp4")
     ok, frame = video.read()
     image_src = frame
     # image_src = cv2.imread("./Westbrook.jpg")

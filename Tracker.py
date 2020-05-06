@@ -103,7 +103,6 @@ def track_ball(videoPath):
         print("Error reading inital frame")
         return
 
-    # bbox = hough_detector(initial_frame)
     # bbox = cv2.selectROI("Select", initial_frame)
 
     if not bbox:
@@ -159,4 +158,4 @@ def track_ball(videoPath):
 
 
 if __name__ == "__main__":
-    track_ball(videoPath="./Data/FTNash.mp4")
+    track_ball(videoPath="./Data/FTSteve.mp4")

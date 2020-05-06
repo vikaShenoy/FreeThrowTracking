@@ -4,25 +4,34 @@ import cv2
 import numpy as np
 import math
 
-from .Util import circle_to_contour, contour_to_box
-
-# How much tolerance to add around the detected basketball
-BOX_PADDING = 1
+from .Util import circle_to_contour, contour_to_box, circle_to_box, contour_to_circle
 
 # Hough parameter constants
-CANNY_THRESH = 175
-ACCUM_THRESH = 20
-MIN_RADIUS = 10
-MAX_RADIUS = 19
-MIN_DIST = 200
+CANNY_THRESH = 120
+ACCUM_THRESH = 14
+MIN_CANNY_RADIUS = 10
+MAX_CANNY_RADIUS = 20
+MIN_DIST = 120
+DP = 1
 
 # Valid contour constants
-MAX_AREA = math.pi * (MAX_RADIUS ** 2)
-MIN_AREA = math.pi * (MIN_RADIUS ** 2)
-MAX_CAREA = MAX_AREA + 100
+MIN_CONTOUR_AREA = 400
+MAX_CONTOUR_AREA = 1000
+MIN_CIRCLE_RADIUS = 10
+MAX_CIRCLE_RADIUS = 18
+MIN_CIRCLE_AREA = (math.pi * (MIN_CIRCLE_RADIUS ** 2))
+MAX_CIRCLE_AREA = (math.pi * (MAX_CIRCLE_RADIUS ** 2))
 
-MIN_VALUE = 0
-MAX_VALUE = 150
+# HSV ranges
+# MIN_H = 20
+# MAX_H = 160
+MIN_V = 60
+MAX_V = 120
+MIN_S = 140
+MAX_S = 230
+
+
+BOX_PADDING = 5
 
 
 def morphological_transform(frame, opn_iter, cls_iter):
@@ -53,14 +62,14 @@ def morphological_transform(frame, opn_iter, cls_iter):
     return closing
 
 
-def hough_detector(frame, min_dist, canny_thresh, accum_thresh, min_radius, max_radius):
+def hough_detector(frame):
     """Return the bounding box for a basketball in an image, if present.
 
     Args:
         frame: Image to check for circles.
         min_dist: Minimum distance between detected circles
-        canny_thresh: Internal threshold for the canny edge detector. 
-        Higher of the two thresholds passed to the canny detector. 
+        canny_thresh: Internal threshold for the canny edge detector.
+        Higher of the two thresholds passed to the canny detector.
         accum_thresh: threshold for center detection. Smaller values lead to more
         false circles being detected.
         min_radius: Min radius of detected circles.
@@ -68,14 +77,14 @@ def hough_detector(frame, min_dist, canny_thresh, accum_thresh, min_radius, max_
 
     Returns:
         Bounding box co-ordinates around the smallest detected circle.
-        None if no circle can be found matching the input params. 
+        None if no circle can be found matching the input params.
 
     """
     blur = cv2.GaussianBlur(frame, (9, 9), 0)
     gray = cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
     circles = cv2.HoughCircles(image=gray, method=cv2.HOUGH_GRADIENT,
-                               dp=1, minDist=min_dist, param1=canny_thresh,
-                               param2=accum_thresh, minRadius=min_radius, maxRadius=max_radius)
+                               dp=1, minDist=MIN_DIST, param1=CANNY_THRESH,
+                               param2=ACCUM_THRESH, minRadius=MIN_CANNY_RADIUS, maxRadius=MAX_CANNY_RADIUS)
 
     if circles is not None:
         # Circles are 'doublewrapped' in an extra list? Not sure what's going on, this seems to work.
@@ -84,16 +93,17 @@ def hough_detector(frame, min_dist, canny_thresh, accum_thresh, min_radius, max_
 
         for circle in circles:
             contour = circle_to_contour(circle)
-            valid = valid_contour(
-                frame, contour, MAX_AREA, MIN_AREA, MAX_CAREA)
+            valid = valid_contour(frame, contour)
             if valid:
-                return contour_to_box(contour)
+                cv2.drawContours(frame, [contour], -1, (255, 0, 0), 2)
+                show(frame)
+                return circle_to_box(circle, padding=BOX_PADDING)
 
     print("No valid circles found.")
     return None
 
 
-def valid_contour(frame, contour, max_area, min_area, max_carea):
+def valid_contour(frame, contour):
     """Apply filters to a contour to detect whether it's a basketball.
     Check for area of contours and area of circle enclosing the contour.
 
@@ -111,16 +121,14 @@ def valid_contour(frame, contour, max_area, min_area, max_carea):
     """
 
     # Check area of the contour
-    area = cv2.contourArea(contour)
-    if not min_area <= area <= max_area:
-        print("Contour failed area check")
+    contour_area = cv2.contourArea(contour)
+    if not MIN_CONTOUR_AREA <= contour_area <= MAX_CONTOUR_AREA:
         return False
 
     # Check area of the min enclosing circle of the contour
     (cx, cy), radius = cv2.minEnclosingCircle(contour)
     circle_area = radius * radius * math.pi
-    if circle_area > max_carea:
-        print("Contour failed circle area check")
+    if not MIN_CIRCLE_AREA <= circle_area <= MAX_CIRCLE_AREA:
         return False
 
     # Color check
@@ -129,8 +137,11 @@ def valid_contour(frame, contour, max_area, min_area, max_carea):
     cY = int(moments["m01"] / moments["m00"])
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     [h, s, v] = hsv[cY, cX]
-    if not MIN_VALUE <= v <= MAX_VALUE:
-        print("Contour failed color value check")
+    # if not h <= MIN_H or h >= MAX_H:
+    #     return False
+    if not MIN_S <= s <= MAX_S:
+        return False
+    if not MIN_V <= v <= MAX_V:
         return False
 
     return True
@@ -161,23 +172,26 @@ def detect_ball(cap):
         contours, hierarchy = cv2.findContours(
             filtered_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
+        # Hough detector
+        bbox = hough_detector(frame)
+        if bbox:
+            print(f"Hough successful on {frame_num}")
+            return bbox
+
         # cv2.drawContours(frame, contours, -1, (255, 0, 0), 2)
         # show(frame)
 
         print(
             f"Number of contours found in frame {frame_num}: {len(contours)}")
 
-        # for contour in contours:
-        #     valid = valid_contour(
-        #         frame, contour, MAX_AREA, MIN_AREA, MAX_CAREA)
-        #     if valid:
-        #         return contour_to_box(contour)
-
-        bbox = hough_detector(frame, MIN_DIST, CANNY_THRESH,
-                              ACCUM_THRESH, MIN_RADIUS, MAX_RADIUS)
-        if bbox:
-            print(f"Hough successful on {frame_num}")
-            return bbox
+        # Contour detector
+        for contour in contours:
+            valid = valid_contour(frame, contour)
+            if valid:
+                cv2.drawContours(frame, [contour], -1, (255, 0, 0), 2)
+                show(frame)
+                (x, y), r = contour_to_circle(contour)
+                return circle_to_box((x, y, r), BOX_PADDING)
 
     # cv2.drawContours(frame, valid_contours, -1, (255, 0, 0), 2)
     # show(frame)

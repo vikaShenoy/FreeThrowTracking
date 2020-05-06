@@ -11,7 +11,12 @@ def nothing(x):
 
 
 # img_original = cv2.imread('../images/coloured_balls.jpg')
-cap = cv2.VideoCapture("./Data/FTDavid.mp4")
+cap = cv2.VideoCapture("./Data/FTNash.mp4")
+
+for i in range(36):
+    ret, img_original = cap.read()
+
+
 ret, img_original = cap.read()
 
 blur = cv2.GaussianBlur(img_original, (9, 9), 0)
@@ -43,7 +48,7 @@ while True:
     circles = cv2.HoughCircles(gray,
                                cv2.HOUGH_GRADIENT,
                                1,
-                               20,
+                               120,
                                param1=param1,
                                param2=param2,
                                minRadius=minRadius,

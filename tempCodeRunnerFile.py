@@ -1,2 +1,2 @@
 
-    track_ball(videoPath="./Data/FTGordon.mp4")
+from Util.BallDetection import detect_ball
