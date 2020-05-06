@@ -44,8 +44,6 @@ def ball_contact(shot_data, xpeak):
 
 def calculate_launch_angle(shot_data, p1, frame, n=3):
     """Take in shot data and return the angle at which the ball was released by the shooter."""
-    # TODO - implement with a more sophisticated approach (if one exists)
-    # Testing
     p2 = ()
     # Find a frame slightly after the release frame to calculate the launch angle with
     for i, (x, y) in enumerate(shot_data):
@@ -59,11 +57,7 @@ def calculate_launch_angle(shot_data, p1, frame, n=3):
     print(f"p2: {p2}")
     print(f"Xdiff: {xdiff}")
     print(f"Ydiff: {ydiff}")
-    # Testing
-    # cv2.circle(frame, p1, RADIUS, (255, 0, 0), 2)
-    # cv2.circle(frame, p2, RADIUS, (255, 0, 0), 2)
-    # cv2.imshow("Angle finding", frame)
-    # cv2.waitKey(0)
+
     return math.degrees(math.atan(ydiff / xdiff))
 
 
@@ -88,38 +82,34 @@ def calculate_launch_velocity(throw_time, release_angle):
     return abs(c * (throw_time / math.sin(release_angle)))
 
 
-def track_ball(videoPath):
+def track_ball(video_path):
     """Track a ball in a video of a basketball shot. Draw a box around the ball."""
     # TODO - handle the case where camera is on the other side of the shooter
-    cap = cv2.VideoCapture(videoPath)
+    cap = cv2.VideoCapture(video_path)
+    frame_rate = cap.get(cv2.CAP_PROP_FPS)
+    shot_data = []
 
     bbox = detect_ball(cap)
+    # bbox = cv2.selectROI("Select", initial_frame)
     if not bbox:
         print("Error detecting ball")
+        return
 
-    frame_rate = cap.get(cv2.CAP_PROP_FPS)
     ok, initial_frame = cap.read()
     if not ok:
         print("Error reading inital frame")
         return
 
-    # bbox = cv2.selectROI("Select", initial_frame)
-
-    if not bbox:
-        return
-
     tracker = cv2.TrackerCSRT_create()
     ok = tracker.init(initial_frame, bbox)
-
-    shot_data = []
 
     while cap.isOpened() and not (cv2.waitKey(1) & 0xFF == ord('q')):
         ok, frame = cap.read()
         if not ok:
             break
         timer = cv2.getTickCount()
-        ok, bbox = tracker.update(frame)
         fps = cv2.getTickFrequency() / (cv2.getTickCount() - timer)
+        ok, bbox = tracker.update(frame)
         if ok:
             shot_data.append(
                 (int(bbox[0] + (bbox[2]/2)), int(bbox[1] + (bbox[2]/2))))
@@ -158,4 +148,4 @@ def track_ball(videoPath):
 
 
 if __name__ == "__main__":
-    track_ball(videoPath="./Data/FTSteve.mp4")
+    track_ball(video_path="./Data/FTVikas.mp4")

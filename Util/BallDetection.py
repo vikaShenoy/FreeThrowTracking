@@ -23,13 +23,8 @@ MIN_CIRCLE_AREA = (math.pi * (MIN_CIRCLE_RADIUS ** 2))
 MAX_CIRCLE_AREA = (math.pi * (MAX_CIRCLE_RADIUS ** 2))
 
 # HSV ranges
-# MIN_H = 20
-# MAX_H = 160
-MIN_V = 60
-MAX_V = 120
-MIN_S = 140
-MAX_S = 230
-
+MIN_HSV = [0, 140, 60]
+MAX_HSV = [180, 230, 120]
 
 BOX_PADDING = 5
 
@@ -137,11 +132,12 @@ def valid_contour(frame, contour):
     cY = int(moments["m01"] / moments["m00"])
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     [h, s, v] = hsv[cY, cX]
-    # if not h <= MIN_H or h >= MAX_H:
-    #     return False
-    if not MIN_S <= s <= MAX_S:
+
+    if not MIN_HSV[0] <= h <= MAX_HSV[0]:
         return False
-    if not MIN_V <= v <= MAX_V:
+    if not MIN_HSV[1] <= s <= MAX_HSV[1]:
+        return False
+    if not MIN_HSV[2] <= v <= MAX_HSV[2]:
         return False
 
     return True
@@ -178,9 +174,6 @@ def detect_ball(cap):
             print(f"Hough successful on {frame_num}")
             return bbox
 
-        # cv2.drawContours(frame, contours, -1, (255, 0, 0), 2)
-        # show(frame)
-
         print(
             f"Number of contours found in frame {frame_num}: {len(contours)}")
 
@@ -192,10 +185,6 @@ def detect_ball(cap):
                 show(frame)
                 (x, y), r = contour_to_circle(contour)
                 return circle_to_box((x, y, r), BOX_PADDING)
-
-    # cv2.drawContours(frame, valid_contours, -1, (255, 0, 0), 2)
-    # show(frame)
-    # return (0, 0, 0, 0)
 
 
 def show(img):
