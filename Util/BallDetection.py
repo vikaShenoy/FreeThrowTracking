@@ -89,7 +89,6 @@ def hough_detector(frame):
                 show(frame)
                 return circle_to_box(circle, padding=BOX_PADDING)
 
-    print("No valid circles found")
     return None
 
 
@@ -119,7 +118,6 @@ def contour_detector(frame):
             (x, y), r = contour_to_circle(contour)
             return circle_to_box((x, y, r), BOX_PADDING)
 
-    print("No valid contours found")
     return None
 
 
@@ -191,17 +189,17 @@ def detect_ball(cap):
         if not ok:
             return None
 
-        # Hough detector
         bbox = hough_detector(frame)
         if bbox:
             print(f"Hough successful on {frame_num}")
             return bbox
 
-        # Contour detector
         bbox = contour_detector(frame)
         if bbox:
             print(f"Contour successful on {frame_num}")
             return bbox
+
+        print(f"No ball detected on frame: {frame_num}")
 
 
 def show(img):
