@@ -192,9 +192,9 @@ def display_stats(frame, keypoints, angle, velocity):
     cv2.circle(frame, keypoints[1], RADIUS, (0, 0, 255), 2)
     cv2.circle(frame, keypoints[2], RADIUS, (0, 0, 255), 2)
     cv2.putText(frame, f"Launch angle: {round(angle, 1)}deg",
-                (550, 400), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
+                (550, 400), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
     cv2.putText(frame, f"Velocity: {round(velocity, 1)}m/s",
-                (550, 450), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
+                (550, 450), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
     cv2.imshow("Ball positions", frame)
     cv2.waitKey(0)
 

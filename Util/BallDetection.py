@@ -79,8 +79,6 @@ def hough_detector(frame):
     if circles is not None:
         # Circles are 'doublewrapped' in an extra list? Not sure what's going on, this seems to work.
         circles = circles[0]
-        print(f"Circles found: {len(circles)}")
-
         for circle in circles:
             contour = circle_to_contour(circle)
             valid = valid_contour(frame, contour)
@@ -109,7 +107,6 @@ def contour_detector(frame):
     contours, hierarchy = cv2.findContours(
         filtered_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    print(f"Contours found: {len(contours)}")
     for contour in contours:
         valid = valid_contour(frame, contour)
         if valid:
@@ -191,12 +188,12 @@ def detect_ball(cap):
 
         bbox = hough_detector(frame)
         if bbox:
-            print(f"Hough successful on {frame_num}")
+            print(f"Hough successful on frame {frame_num}")
             return bbox
 
         bbox = contour_detector(frame)
         if bbox:
-            print(f"Contour successful on {frame_num}")
+            print(f"Contour successful on frame {frame_num}")
             return bbox
 
         print(f"No ball detected on frame: {frame_num}")
