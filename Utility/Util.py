@@ -54,3 +54,46 @@ def circle_to_box(circle, padding):
     (x, y, r) = circle
     width_height = (2*r) + padding
     return (x-r, y-r, width_height, width_height)
+
+
+def box_to_contour(bbox):
+    """Return the 8 points of a bounding box."""
+    contour = np.empty((8, 1, 2), dtype=np.int32)
+    x1, y1, w, h = bbox
+    contour[0] = [x1, y1]
+    contour[1] = [x1 + (w/2), y1]
+    contour[2] = [x1 + w, y1]
+    contour[3] = [x1 + w, y1 + (h/2)]
+    contour[4] = [x1 + w, y1 + h]
+    contour[5] = [x1 + (w/2), y1 + h]
+    contour[6] = [x1, y1 + h]
+    contour[7] = [x1, y1 + (h/2)]
+
+    return contour
+
+
+def contour_centroid_color(frame, contour):
+    """Find the HSV color value at the center of a contour.
+
+    Args:
+        frame: Image. 
+        contour: list of point comprising the contour.
+
+    Returns:
+        [h, s, v] of the centroid of the contour.
+
+    """
+    moments = cv2.moments(contour)
+    cX = int(moments["m10"] / moments["m00"])
+    cY = int(moments["m01"] / moments["m00"])
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    return hsv[cY, cX]
+
+
+def bbox_center_color(frame, bbox):
+    """."""
+    x, y, w, h = bbox
+    x1 = int(x + w)
+    y1 = int(y + h)
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    return hsv[y1, x1]

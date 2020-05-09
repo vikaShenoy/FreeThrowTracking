@@ -11,9 +11,9 @@ def nothing(x):
 
 
 # img_original = cv2.imread('../images/coloured_balls.jpg')
-cap = cv2.VideoCapture("./Data/FTNash.mp4")
+cap = cv2.VideoCapture("./Data/FTGordon.mp4")
 
-for i in range(36):
+for i in range(90):
     ret, img_original = cap.read()
 
 

@@ -1,9 +1,9 @@
 import cv2
-import numpy
+import numpy as np
 import copy
 import math
 
-from Util.BallDetection import detect_ball
+from Utility.BallDetection import detect_ball, show, valid_tracker_box
 
 # Radius for the circles to draw on the final image
 RADIUS = 20
@@ -138,6 +138,12 @@ def calculate_launch_angle(shot_data, p1, n=3):
     return math.degrees(math.atan(ydiff / xdiff))
 
 
+def calculate_launch_velocity(throw_time, release_angle):
+    """Find the velocity the ball is released with."""
+    gravity_const = 4.9
+    return abs(gravity_const * (throw_time / math.sin(release_angle)))
+
+
 def calculate_throw_time(shot_data, release, contact, frame_rate):
     """Find how long it takes the ball to go from release to contact.
 
@@ -163,10 +169,19 @@ def calculate_throw_time(shot_data, release, contact, frame_rate):
     return frame_diff / frame_rate
 
 
-def calculate_launch_velocity(throw_time, release_angle):
-    """Find the velocity the ball is released with."""
-    gravity_const = 4.9
-    return abs(gravity_const * (throw_time / math.sin(release_angle)))
+def calculate_release_height(release):
+    """Find the height the player releases the ball at.
+    TODO: Not yet implemented. Need to find a way to find the 
+    height of the ground in the scene.
+
+    Args:
+        release: (x, y) location of ball release.
+
+    Returns:
+        (Float) Release height in metres.
+
+    """
+    pass
 
 
 def extract_keypoints(shot_data):
@@ -214,6 +229,10 @@ def track_ball(cap, initial_frame, tracker, bbox):
 
     """
     shot_data = []
+    inaccuracy_count = 0
+    redetection_count = 0
+    frame_num = 0
+    inaccuracy_tolerance = 10
 
     ok = tracker.init(initial_frame, bbox)
     if not ok:
@@ -221,18 +240,39 @@ def track_ball(cap, initial_frame, tracker, bbox):
         return shot_data
 
     while cap.isOpened() and not (cv2.waitKey(1) & 0xFF == ord('q')):
+        frame_num += 1
         ok, frame = cap.read()
         if not ok:
             break
         timer = cv2.getTickCount()
         fps = cv2.getTickFrequency() / (cv2.getTickCount() - timer)
+
         ok, bbox = tracker.update(frame)
-        if ok:
-            shot_data.append(
-                (int(bbox[0] + (bbox[2]/2)), int(bbox[1] + (bbox[2]/2))))
-            p1 = (int(bbox[0]), int(bbox[1]))
-            p2 = (int(bbox[0] + bbox[2]), int(bbox[1] + bbox[3]))
-            cv2.rectangle(frame, p1, p2, (255, 0, 0), 2, 1)
+
+        # TODO - fix the redetection phase
+        # if not valid_tracker_box(frame, bbox):
+        #     inaccuracy_count += 1
+        # else:
+        #     inaccuracy_count = 0
+
+        # if inaccuracy_count >= inaccuracy_tolerance:
+        #     print(f"Tracking failure detected.")
+        #     # show(frame)
+        #     # Redetect
+        #     bbox = detect_ball(cap)
+        #     if not bbox:
+        #         print("Ball could not be re-detected.")
+        #         break
+        #     tracker = cv2.TrackerCSRT_create()
+        #     tracker.init(frame, bbox)
+        #     inaccuracy_count = 0
+        #     redetection_count += 1
+
+        shot_data.append(
+            (int(bbox[0] + (bbox[2]/2)), int(bbox[1] + (bbox[2]/2))))
+        p1 = (int(bbox[0]), int(bbox[1]))
+        p2 = (int(bbox[0] + bbox[2]), int(bbox[1] + bbox[3]))
+        cv2.rectangle(frame, p1, p2, (255, 0, 0), 2, 1)
         cv2.imshow("Tracking", frame)
 
     return shot_data
@@ -274,4 +314,4 @@ def main(video_path):
 
 
 if __name__ == "__main__":
-    main(video_path="./Data/FTNash.mp4")
+    main(video_path="./Data/JAllen.mp4")
