@@ -5,6 +5,7 @@ import numpy as np
 import math
 
 import Utility.Util as Util
+# import Util as Util
 
 # Hough parameter constants
 CANNY_THRESH = 120
@@ -23,6 +24,7 @@ MIN_CIRCLE_AREA = (math.pi * (MIN_CIRCLE_RADIUS ** 2))
 MAX_CIRCLE_AREA = (math.pi * (MAX_CIRCLE_RADIUS ** 2))
 
 # HSV ranges
+# MIN_HSV = [0, 60, 60]
 MIN_HSV = [0, 140, 60]
 MAX_HSV = [180, 230, 120]
 
@@ -83,8 +85,8 @@ def hough_detector(frame):
             contour = Util.circle_to_contour(circle)
             valid = valid_contour(frame, contour)
             if valid:
-                # cv2.drawContours(frame, [contour], -1, (255, 0, 0), 2)
-                # show(frame)
+                cv2.drawContours(frame, [contour], -1, (255, 0, 0), 2)
+                show(frame)
                 return Util.circle_to_box(circle, padding=BOX_PADDING)
 
     return None
@@ -110,8 +112,8 @@ def contour_detector(frame):
     for contour in contours:
         valid = valid_contour(frame, contour)
         if valid:
-            # cv2.drawContours(frame, [contour], -1, (255, 0, 0), 2)
-            # show(frame)
+            cv2.drawContours(frame, [contour], -1, (255, 0, 0), 2)
+            show(frame)
             (x, y), r = Util.contour_to_circle(contour)
             return Util.circle_to_box((x, y, r), BOX_PADDING)
 
@@ -122,10 +124,10 @@ def valid_hsv(hsv):
     """Return True if an array of hsv values falls within valid ranges.
     Valid ranges are global constants."""
     [h, s, v] = hsv
-    if not MIN_HSV[0] <= h <= MAX_HSV[0]:
-        return False
-    if not MIN_HSV[1] <= s <= MAX_HSV[1]:
-        return False
+    # if not MIN_HSV[0] <= h <= MAX_HSV[0]:
+    #     return False
+    # if not MIN_HSV[1] <= s <= MAX_HSV[1]:
+    #     return False
     if not MIN_HSV[2] <= v <= MAX_HSV[2]:
         return False
     return True
@@ -173,13 +175,8 @@ def valid_contour(frame, contour):
         return False
 
     # Check color of the centroid of the contour
-    [h, s, v] = Util.contour_centroid_color(frame, contour)
-
-    if not MIN_HSV[0] <= h <= MAX_HSV[0]:
-        return False
-    if not MIN_HSV[1] <= s <= MAX_HSV[1]:
-        return False
-    if not MIN_HSV[2] <= v <= MAX_HSV[2]:
+    hsv = Util.contour_centroid_color(frame, contour)
+    if not valid_hsv(hsv):
         return False
 
     return True
@@ -207,15 +204,15 @@ def detect_ball(cap):
         if not ok:
             return None
 
-        bbox = hough_detector(frame)
-        if bbox:
-            print(f"Hough successful on frame {frame_num}")
-            return bbox
+        # bbox = hough_detector(frame)
+        # if bbox:
+        #     print(f"Hough successful on frame {frame_num}")
+        #     return frame_num, bbox
 
         bbox = contour_detector(frame)
         if bbox:
             print(f"Contour successful on frame {frame_num}")
-            return bbox
+            return frame_num, bbox
 
         print(f"No ball detected on frame: {frame_num}")
 
@@ -227,7 +224,7 @@ def show(img):
 
 
 if __name__ == "__main__":
-    filepath = "./Data/FTVikas.mp4"
+    filepath = "./Data/FTJake.mp4"
     cap = cv2.VideoCapture(filepath)
     bbox = detect_ball(cap)
     print(f"Bbox: {bbox}")

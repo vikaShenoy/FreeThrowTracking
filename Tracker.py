@@ -232,7 +232,7 @@ def track_ball(cap, initial_frame, tracker, bbox):
     inaccuracy_count = 0
     redetection_count = 0
     frame_num = 0
-    inaccuracy_tolerance = 10
+    inaccuracy_tolerance = 20
 
     ok = tracker.init(initial_frame, bbox)
     if not ok:
@@ -259,10 +259,12 @@ def track_ball(cap, initial_frame, tracker, bbox):
         #     print(f"Tracking failure detected.")
         #     # show(frame)
         #     # Redetect
-        #     bbox = detect_ball(cap)
+        #     num, bbox = detect_ball(cap)
         #     if not bbox:
         #         print("Ball could not be re-detected.")
         #         break
+        #     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num + num)
+        #     ok, frame = cap.read()
         #     tracker = cv2.TrackerCSRT_create()
         #     tracker.init(frame, bbox)
         #     inaccuracy_count = 0
@@ -290,12 +292,13 @@ def main(video_path):
     cap = cv2.VideoCapture(video_path)
     frame_rate = cap.get(cv2.CAP_PROP_FPS)
 
-    bbox = detect_ball(cap)
+    frame_num, bbox = detect_ball(cap)
     # bbox = cv2.selectROI("Select", initial_frame)
     if not bbox:
         print("Error detecting ball")
         return
 
+    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num - 1)
     ok, initial_frame = cap.read()
     if not ok:
         print("Error reading inital frame")
@@ -306,12 +309,16 @@ def main(video_path):
     keypoints = extract_keypoints(shot_data)
     (release, peak, contact) = keypoints
 
-    angle = calculate_launch_angle(shot_data, release, n=10)
-    throw_time = calculate_throw_time(shot_data, release, contact, frame_rate)
-    velocity = calculate_launch_velocity(throw_time, angle)
+    try:
+        angle = calculate_launch_angle(shot_data, release, n=10)
+        throw_time = calculate_throw_time(
+            shot_data, release, contact, frame_rate)
+        velocity = calculate_launch_velocity(throw_time, angle)
+        display_stats(initial_frame, keypoints, angle, velocity)
 
-    display_stats(initial_frame, keypoints, angle, velocity)
+    except Exception:
+        exit
 
 
 if __name__ == "__main__":
-    main(video_path="./Data/JAllen.mp4")
+    main(video_path="./Data/FTVikas2.mp4")
