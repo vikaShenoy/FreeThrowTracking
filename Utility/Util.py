@@ -84,6 +84,8 @@ def contour_centroid_color(frame, contour):
 
     """
     moments = cv2.moments(contour)
+    if moments["m00"] == 0:
+        return [255, 255, 255]
     cX = int(moments["m10"] / moments["m00"])
     cY = int(moments["m01"] / moments["m00"])
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)

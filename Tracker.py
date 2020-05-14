@@ -17,8 +17,8 @@ LEFT = 1
 
 def ball_peak(shot_data):
     """Find the (x, y) co-ordinates for the ball at its peak in the trajectory.
-    NOTE: the y-axis is in the negative direction. So the lowest y-value 
-    indicates the ball at its highest point.  
+    NOTE: the y-axis is in the negative direction. So the lowest y-value
+    indicates the ball at its highest point.
 
     Returns:
         The index of the shot location in shot_data which contains the ball peak.
@@ -36,7 +36,7 @@ def ball_peak(shot_data):
 
 def release_side(shot_data, peak_index):
     """Find the side the basketball is released on.
-    Useful for further calculations on angles.  
+    Useful for further calculations on angles.
 
     Args:
         shot_data: List of shot_coordinates for the ball.
@@ -48,7 +48,7 @@ def release_side(shot_data, peak_index):
         1 if the ball is shot from left to right.
 
     """
-    c = 3
+    c = 2
     x_prev = shot_data[peak_index - c][0]
     x_post = shot_data[peak_index + c][0]
     x_peak = shot_data[peak_index][0]
@@ -121,10 +121,10 @@ def calculate_launch_angle(shot_data, p1, n=3):
         shot_data: List of (x, y) co-ordinates from the center of the ball tracker.
         p1: First point to calculate angle from - release point.
         n: How many frames after the inital frame to calculate angle with.
-        Large values will form a large triangle. 
+        Large values will form a large triangle.
 
     Returns:
-        The launch angle in degrees. 
+        The launch angle in degrees.
 
     """
     p2 = ()
@@ -140,11 +140,11 @@ def calculate_launch_angle(shot_data, p1, n=3):
 
 def calculate_launch_velocity(throw_time, release_angle):
     """Find the velocity the ball is released with."""
-    gravity_const = 4.9
-    return abs(gravity_const * (throw_time / math.sin(release_angle)))
+    gravity_const = 9.8
+    return abs(gravity_const * (throw_time / np.sin(np.deg2rad(release_angle))))
 
 
-def calculate_throw_time(shot_data, release, contact, frame_rate):
+def calculate_throw_time(shot_data, release, peak, frame_rate):
     """Find how long it takes the ball to go from release to contact.
 
     Args:
@@ -162,7 +162,7 @@ def calculate_throw_time(shot_data, release, contact, frame_rate):
     for i, pos in enumerate(shot_data):
         if pos == release:
             p1 = i
-        elif pos == contact:
+        elif pos == peak:
             p2 = i
 
     frame_diff = p2 - p1
@@ -171,7 +171,7 @@ def calculate_throw_time(shot_data, release, contact, frame_rate):
 
 def calculate_release_height(release):
     """Find the height the player releases the ball at.
-    TODO: Not yet implemented. Need to find a way to find the 
+    TODO: Not yet implemented. Need to find a way to find the
     height of the ground in the scene.
 
     Args:
@@ -192,12 +192,12 @@ def extract_keypoints(shot_data):
     side = release_side(shot_data, peak_index)
     if side == RIGHT:
         release = ball_release_right(shot_data, peak[0])
-        contact = ball_contact_left(shot_data, peak[0])
+        # contact = ball_contact_left(shot_data, peak[0])
     elif side == LEFT:
         release = ball_release_left(shot_data, peak[0])
-        contact = ball_contact_right(shot_data, peak[0])
+        # contact = ball_contact_right(shot_data, peak[0])
 
-    return release, peak, contact
+    return release, peak
 
 
 def display_stats(frame, keypoints, angle, velocity):
@@ -205,7 +205,6 @@ def display_stats(frame, keypoints, angle, velocity):
     Display the launch velocity and release angle."""
     cv2.circle(frame, keypoints[0], RADIUS, (0, 0, 255), 2)
     cv2.circle(frame, keypoints[1], RADIUS, (0, 0, 255), 2)
-    cv2.circle(frame, keypoints[2], RADIUS, (0, 0, 255), 2)
     cv2.putText(frame, f"Launch angle: {round(angle, 1)}deg",
                 (550, 400), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
     cv2.putText(frame, f"Velocity: {round(velocity, 1)}m/s",
@@ -224,7 +223,7 @@ def track_ball(cap, initial_frame, tracker, bbox):
         bbox: Co-ordinates for the bounding box of the ball to track.
 
     Returns:
-        A list of shot_data (x, y) locations of the center of the 
+        A list of shot_data (x, y) locations of the center of the
         bounding box, representing the basketball's shot locations.
 
     """
@@ -232,7 +231,7 @@ def track_ball(cap, initial_frame, tracker, bbox):
     inaccuracy_count = 0
     redetection_count = 0
     frame_num = 0
-    inaccuracy_tolerance = 20
+    inaccuracy_tolerance = 10
 
     ok = tracker.init(initial_frame, bbox)
     if not ok:
@@ -250,32 +249,33 @@ def track_ball(cap, initial_frame, tracker, bbox):
         ok, bbox = tracker.update(frame)
 
         # TODO - fix the redetection phase
-        # if not valid_tracker_box(frame, bbox):
-        #     inaccuracy_count += 1
-        # else:
-        #     inaccuracy_count = 0
+        if not valid_tracker_box(frame, bbox):
+            inaccuracy_count += 1
+        else:
+            inaccuracy_count = 0
 
-        # if inaccuracy_count >= inaccuracy_tolerance:
-        #     print(f"Tracking failure detected.")
-        #     # show(frame)
-        #     # Redetect
-        #     num, bbox = detect_ball(cap)
-        #     if not bbox:
-        #         print("Ball could not be re-detected.")
-        #         break
-        #     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num + num)
-        #     ok, frame = cap.read()
-        #     tracker = cv2.TrackerCSRT_create()
-        #     tracker.init(frame, bbox)
-        #     inaccuracy_count = 0
-        #     redetection_count += 1
-
-        shot_data.append(
-            (int(bbox[0] + (bbox[2]/2)), int(bbox[1] + (bbox[2]/2))))
-        p1 = (int(bbox[0]), int(bbox[1]))
-        p2 = (int(bbox[0] + bbox[2]), int(bbox[1] + bbox[3]))
-        cv2.rectangle(frame, p1, p2, (255, 0, 0), 2, 1)
-        cv2.imshow("Tracking", frame)
+        if inaccuracy_count >= inaccuracy_tolerance:
+            print(f"Tracking failure detected on frame {frame_num}")
+            shot_data = shot_data[:-inaccuracy_tolerance]
+            # show(frame)
+            # Redetect
+            num, bbox = detect_ball(cap)
+            if not bbox:
+                print("Ball could not be re-detected.")
+                break
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num + num - 1)
+            ok, frame = cap.read()
+            tracker = cv2.TrackerCSRT_create()
+            tracker.init(frame, bbox)
+            inaccuracy_count = 0
+            redetection_count += 1
+        else:
+            shot_data.append(
+                (int(bbox[0] + (bbox[2]/2)), int(bbox[1] + (bbox[2]/2))))
+            p1 = (int(bbox[0]), int(bbox[1]))
+            p2 = (int(bbox[0] + bbox[2]), int(bbox[1] + bbox[3]))
+            cv2.rectangle(frame, p1, p2, (255, 0, 0), 2, 1)
+            cv2.imshow("Tracking", frame)
 
     return shot_data
 
@@ -307,18 +307,19 @@ def main(video_path):
     tracker = cv2.TrackerCSRT_create()
     shot_data = track_ball(cap, initial_frame, tracker, bbox)
     keypoints = extract_keypoints(shot_data)
-    (release, peak, contact) = keypoints
+    (release, peak) = keypoints
 
     try:
         angle = calculate_launch_angle(shot_data, release, n=10)
         throw_time = calculate_throw_time(
-            shot_data, release, contact, frame_rate)
+            shot_data, release, peak, frame_rate)
         velocity = calculate_launch_velocity(throw_time, angle)
         display_stats(initial_frame, keypoints, angle, velocity)
 
     except Exception:
+        raise
         exit
 
 
 if __name__ == "__main__":
-    main(video_path="./Data/FTVikas2.mp4")
+    main(video_path="./Data/FTNash.mp4")

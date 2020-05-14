@@ -8,27 +8,27 @@ import Utility.Util as Util
 # import Util as Util
 
 # Hough parameter constants
-CANNY_THRESH = 120
-ACCUM_THRESH = 14
+CANNY_THRESH = 100
+ACCUM_THRESH = 18
 MIN_CANNY_RADIUS = 10
-MAX_CANNY_RADIUS = 20
-MIN_DIST = 120
+MAX_CANNY_RADIUS = 25
+MIN_DIST = 110
 DP = 1
 
 # Valid contour constants
 MIN_CONTOUR_AREA = 400
-MAX_CONTOUR_AREA = 1000
-MIN_CIRCLE_RADIUS = 10
-MAX_CIRCLE_RADIUS = 18
+MAX_CONTOUR_AREA = 1200
+MIN_CIRCLE_RADIUS = 9
+MAX_CIRCLE_RADIUS = 20
 MIN_CIRCLE_AREA = (math.pi * (MIN_CIRCLE_RADIUS ** 2))
 MAX_CIRCLE_AREA = (math.pi * (MAX_CIRCLE_RADIUS ** 2))
 
 # HSV ranges
 # MIN_HSV = [0, 60, 60]
-MIN_HSV = [0, 140, 60]
+MIN_HSV = [0, 130, 40]
 MAX_HSV = [180, 230, 120]
 
-BOX_PADDING = 5
+BOX_PADDING = 15
 
 
 def morphological_transform(frame, opn_iter, cls_iter):
@@ -109,6 +109,9 @@ def contour_detector(frame):
     contours, hierarchy = cv2.findContours(
         filtered_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
+    # cv2.drawContours(frame, contours, -1, (0, 255, 0), 2)
+    # show(frame)
+
     for contour in contours:
         valid = valid_contour(frame, contour)
         if valid:
@@ -124,10 +127,10 @@ def valid_hsv(hsv):
     """Return True if an array of hsv values falls within valid ranges.
     Valid ranges are global constants."""
     [h, s, v] = hsv
-    # if not MIN_HSV[0] <= h <= MAX_HSV[0]:
-    #     return False
-    # if not MIN_HSV[1] <= s <= MAX_HSV[1]:
-    #     return False
+    if not MIN_HSV[0] <= h <= MAX_HSV[0]:
+        return False
+    if not MIN_HSV[1] <= s <= MAX_HSV[1]:
+        return False
     if not MIN_HSV[2] <= v <= MAX_HSV[2]:
         return False
     return True
@@ -138,9 +141,14 @@ def valid_tracker_box(frame, bbox):
     Checks the color of the centroid for an hsv range."""
     contour = Util.box_to_contour(bbox)
 
-    hsv = Util.contour_centroid_color(frame, contour)
-
-    if not valid_hsv(hsv):
+    [h, s, v] = Util.contour_centroid_color(frame, contour)
+    min_hsv = [0, 0, 40]
+    max_hsv = [180, 255, 140]
+    if not min_hsv[0] <= h <= max_hsv[0]:
+        return False
+    if not min_hsv[1] <= s <= max_hsv[1]:
+        return False
+    if not min_hsv[2] <= v <= max_hsv[2]:
         return False
     return True
 
@@ -198,16 +206,18 @@ def detect_ball(cap):
     valid_contours = []
     frame_num = 0
 
+    # cap = skip(cap, 10)
+
     while True:
         ok, frame = cap.read()
         frame_num += 1
         if not ok:
-            return None
+            return 0, None
 
-        # bbox = hough_detector(frame)
-        # if bbox:
-        #     print(f"Hough successful on frame {frame_num}")
-        #     return frame_num, bbox
+        bbox = hough_detector(frame)
+        if bbox:
+            print(f"Hough successful on frame {frame_num}")
+            return frame_num, bbox
 
         bbox = contour_detector(frame)
         if bbox:
@@ -223,8 +233,15 @@ def show(img):
     cv2.waitKey(0)
 
 
+def skip(cap, n):
+    """Debug function to skip a video ahead n frames."""
+    for i in range(n):
+        ok, frame = cap.read()
+    return cap
+
+
 if __name__ == "__main__":
-    filepath = "./Data/FTJake.mp4"
+    filepath = "./Data/FTVikas3.mp4"
     cap = cv2.VideoCapture(filepath)
     bbox = detect_ball(cap)
     print(f"Bbox: {bbox}")
