@@ -230,7 +230,6 @@ def track_ball(cap, initial_frame, tracker, bbox):
     shot_data = []
     inaccuracy_count = 0
     redetection_count = 0
-    frame_num = 0
     inaccuracy_tolerance = 10
 
     ok = tracker.init(initial_frame, bbox)
@@ -239,43 +238,42 @@ def track_ball(cap, initial_frame, tracker, bbox):
         return shot_data
 
     while cap.isOpened() and not (cv2.waitKey(1) & 0xFF == ord('q')):
-        frame_num += 1
         ok, frame = cap.read()
         if not ok:
             break
-        timer = cv2.getTickCount()
-        fps = cv2.getTickFrequency() / (cv2.getTickCount() - timer)
 
         ok, bbox = tracker.update(frame)
 
-        # TODO - fix the redetection phase
         if not valid_tracker_box(frame, bbox):
             inaccuracy_count += 1
         else:
             inaccuracy_count = 0
 
         if inaccuracy_count >= inaccuracy_tolerance:
-            print(f"Tracking failure detected on frame {frame_num}")
+            print(
+                f"Tracking failure detected on frame {cap.get(cv2.CAP_PROP_POS_FRAMES)}")
             shot_data = shot_data[:-inaccuracy_tolerance]
-            # show(frame)
-            # Redetect
-            num, bbox = detect_ball(cap)
+            current_frame = cap.get(cv2.CAP_PROP_POS_FRAMES)
+
+            redetect_frames, bbox = detect_ball(cap)
             if not bbox:
                 print("Ball could not be re-detected.")
                 break
-            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num + num - 1)
+
+            cap.set(cv2.CAP_PROP_POS_FRAMES,
+                    current_frame + redetect_frames - 1)
             ok, frame = cap.read()
             tracker = cv2.TrackerCSRT_create()
             tracker.init(frame, bbox)
             inaccuracy_count = 0
             redetection_count += 1
-        else:
-            shot_data.append(
-                (int(bbox[0] + (bbox[2]/2)), int(bbox[1] + (bbox[2]/2))))
-            p1 = (int(bbox[0]), int(bbox[1]))
-            p2 = (int(bbox[0] + bbox[2]), int(bbox[1] + bbox[3]))
-            cv2.rectangle(frame, p1, p2, (255, 0, 0), 2, 1)
-            cv2.imshow("Tracking", frame)
+
+        shot_data.append(
+            (int(bbox[0] + (bbox[2]/2)), int(bbox[1] + (bbox[2]/2))))
+        p1 = (int(bbox[0]), int(bbox[1]))
+        p2 = (int(bbox[0] + bbox[2]), int(bbox[1] + bbox[3]))
+        cv2.rectangle(frame, p1, p2, (255, 0, 0), 2, 1)
+        cv2.imshow("Tracking", frame)
 
     return shot_data
 
@@ -292,13 +290,13 @@ def main(video_path):
     cap = cv2.VideoCapture(video_path)
     frame_rate = cap.get(cv2.CAP_PROP_FPS)
 
-    frame_num, bbox = detect_ball(cap)
+    detection_frames, bbox = detect_ball(cap)
     # bbox = cv2.selectROI("Select", initial_frame)
     if not bbox:
         print("Error detecting ball")
         return
 
-    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num - 1)
+    cap.set(cv2.CAP_PROP_POS_FRAMES, detection_frames - 1)
     ok, initial_frame = cap.read()
     if not ok:
         print("Error reading inital frame")
