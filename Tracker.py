@@ -11,6 +11,7 @@ import numpy as np
 import copy
 import math
 import sys
+import logging
 
 from Utility.BallDetection import detect_ball, show, valid_tracker_box
 
@@ -234,7 +235,7 @@ def track_ball(cap, initial_frame, tracker, bbox):
 
     ok = tracker.init(initial_frame, bbox)
     if not ok:
-        print("Error initialising tracker")
+        logging.error("Error initialising tracker")
         return shot_data
 
     while cap.isOpened() and not (cv2.waitKey(1) & 0xFF == ord('q')):
@@ -249,14 +250,14 @@ def track_ball(cap, initial_frame, tracker, bbox):
             inaccuracy_count = 0
 
         if inaccuracy_count >= INACCURACY_TOLERANCE:
-            print(
+            logging.info(
                 f"Tracking failure detected on frame {cap.get(cv2.CAP_PROP_POS_FRAMES)}")
             shot_data = shot_data[:-INACCURACY_TOLERANCE]
             current_frame = cap.get(cv2.CAP_PROP_POS_FRAMES)
 
             redetect_frames, bbox = detect_ball(cap)
             if not bbox:
-                print("Ball could not be re-detected.")
+                logging.error("Ball could not be re-detected.")
                 break
 
             cap.set(cv2.CAP_PROP_POS_FRAMES,
@@ -291,13 +292,13 @@ def main(video_path):
     # Can be used to manually detect the ball
     # bbox = cv2.selectROI("Select", initial_frame)
     if not bbox:
-        print("Error detecting ball")
+        logging.error("Error detecting ball")
         return
 
     cap.set(cv2.CAP_PROP_POS_FRAMES, n_detection_frames - 1)
     ok, initial_frame = cap.read()
     if not ok:
-        print("Error reading inital frame")
+        logging.error("Error reading inital frame")
         return shot_data
 
     tracker = cv2.TrackerCSRT_create()
@@ -318,5 +319,6 @@ def main(video_path):
 
 
 if __name__ == "__main__":
-    filepath = sys.argv[1]
+    # filepath = sys.argv[1]
+    filepath = "./Data/FTVikas1.mp4"
     main(video_path=filepath)

@@ -7,6 +7,7 @@ hough circle detection. First step in ball tracking.
 import cv2
 import numpy as np
 import math
+import logging
 
 import Utility.Util as Util
 
@@ -226,12 +227,12 @@ def detect_ball(cap):
 
         hough_bbox = hough_detector(frame)
         if hough_bbox:
-            print(f"Hough successful on frame {frame_num}")
+            logging.info(f"Hough successful on frame {frame_num}")
             return frame_num, hough_bbox
 
         contour_bbox = contour_detector(frame)
         if contour_bbox:
-            print(f"Contour successful on frame {frame_num}")
+            logging.info(f"Contour successful on frame {frame_num}")
             return frame_num, contour_bbox
 
-        print(f"No ball detected on frame: {frame_num}")
+        logging.info(f"No ball detected on frame: {frame_num}")
