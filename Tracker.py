@@ -1,3 +1,11 @@
+"""
+Author: Vikas Shenoy
+Program to calculate the launch angle and velocity from side-on free throw video
+using OpenCV 2 and computer vision techniques. This file handles the main tracking
+loop as well as parameter calculation, and displays tracking/results to the user. 
+"""
+
+
 import cv2
 import numpy as np
 import copy
@@ -9,16 +17,23 @@ from Utility.BallDetection import detect_ball, show, valid_tracker_box
 RADIUS = 20
 # Used to get the ball in the range of the release/peak/contact points
 KEYPOINT_TOLERANCE = 5
-
+# How many consecutive frames need to fail the detector check for tracking to fail
+INACCURACY_TOLERANCE = 10
 # Constants for shot release side identification
 RIGHT = 0
 LEFT = 1
+
+GOLD = (0, 204, 255)
+RED = (0, 0, 255)
 
 
 def ball_peak(shot_data):
     """Find the (x, y) co-ordinates for the ball at its peak in the trajectory.
     NOTE: the y-axis is in the negative direction. So the lowest y-value
     indicates the ball at its highest point.
+
+    Args:
+        shot_data: list of (x, y) locations of the ball during the shot.
 
     Returns:
         The index of the shot location in shot_data which contains the ball peak.
@@ -59,7 +74,16 @@ def release_side(shot_data, peak_index):
 
 
 def ball_release_right(shot_data, xpeak):
-    """Find the (x, y) co-ordinates for the ball when its released by the player on the right side."""
+    """Find the (x, y) co-ordinates for the ball when its released by the player on the right side.
+
+    Args:
+        shot_data: list of (x, y) positions of the ball from tracking during the shot.
+        xpeak: the x coordiante for the ball at its peak position
+
+    Returns:
+        (x, y) location of where the ball was released from on the right side of the video.
+
+    """
     (x1, y1) = max(shot_data, key=lambda x: x[0])
     ymax = math.inf
 
@@ -72,7 +96,16 @@ def ball_release_right(shot_data, xpeak):
 
 
 def ball_release_left(shot_data, xpeak):
-    """Find the (x, y) co-ordinates for the ball when its released by the player on the left side."""
+    """Find the (x, y) co-ordinates for the ball when its released by the player on the left side.
+
+    Args:
+        shot_data: list of (x, y) positions of the ball from tracking during the shot.
+        xpeak: the x coordiante for the ball at its peak position
+
+    Returns:
+        (x, y) location of where the ball was released from on the left side of the video.
+
+    """
     (x1, y1) = min(shot_data, key=lambda x: x[0])
     ymax = math.inf
 
@@ -80,36 +113,6 @@ def ball_release_left(shot_data, xpeak):
     for (x, y) in shot_data:
         if (x1 - KEYPOINT_TOLERANCE <= x <= x1 + KEYPOINT_TOLERANCE) and y < ymax and x < xpeak:
             ymax = y
-            result = (x, y)
-    return result
-
-
-def ball_contact_left(shot_data, xpeak):
-    """Find the (x, y) co-ordinates for the ball when it hits the backboard/hoop on the left side.
-    NOTE: Will be slightly inaccurate.
-    """
-    (x1, y1) = min(shot_data, key=lambda x: x[0])
-    xmax = -math.inf
-
-    result = None
-    for (x, y) in shot_data:
-        if (y1 - KEYPOINT_TOLERANCE < y < y1 + KEYPOINT_TOLERANCE) and x > xmax and x < xpeak:
-            xmax = x
-            result = (x, y)
-    return result
-
-
-def ball_contact_right(shot_data, xpeak):
-    """Find the (x, y) co-ordinates for the ball when it hits the backboard/hoop on the right side.
-    NOTE: Will be slightly inaccurate.
-    """
-    (x1, y1) = max(shot_data, key=lambda x: x[0])
-    xmax = math.inf
-
-    result = None
-    for (x, y) in shot_data:
-        if (y1 - KEYPOINT_TOLERANCE < y < y1 + KEYPOINT_TOLERANCE) and x < xmax and x > xpeak:
-            xmax = x
             result = (x, y)
     return result
 
@@ -139,7 +142,16 @@ def calculate_launch_angle(shot_data, p1, n=3):
 
 
 def calculate_launch_velocity(throw_time, release_angle):
-    """Find the velocity the ball is released with."""
+    """Find the velocity the ball is released with.
+
+    Args:
+        throw_time: Time for the ball to go from release to peak locations.
+        release_angle: angle in degreees the ball was released with. 
+
+    Returns:
+        (float) velocity of the ball at launch, in m/s.
+
+    """
     gravity_const = 9.8
     return abs(gravity_const * (throw_time / np.sin(np.deg2rad(release_angle))))
 
@@ -169,33 +181,22 @@ def calculate_throw_time(shot_data, release, peak, frame_rate):
     return frame_diff / frame_rate
 
 
-def calculate_release_height(release):
-    """Find the height the player releases the ball at.
-    TODO: Not yet implemented. Need to find a way to find the
-    height of the ground in the scene.
-
+def extract_keypoints(shot_data):
+    """Find the peak and release x,y locations from shot data.
     Args:
-        release: (x, y) location of ball release.
+        shot_data: List of (x, y) locations from ball tracking.
 
     Returns:
-        (Float) Release height in metres.
-
+        release, peak: (x,y), (x,y) coordinates of keypoints.
     """
-    pass
-
-
-def extract_keypoints(shot_data):
-    """."""
     peak_index = ball_peak(shot_data)
     peak = shot_data[peak_index]
 
     side = release_side(shot_data, peak_index)
     if side == RIGHT:
         release = ball_release_right(shot_data, peak[0])
-        # contact = ball_contact_left(shot_data, peak[0])
     elif side == LEFT:
         release = ball_release_left(shot_data, peak[0])
-        # contact = ball_contact_right(shot_data, peak[0])
 
     return release, peak
 
@@ -203,12 +204,12 @@ def extract_keypoints(shot_data):
 def display_stats(frame, keypoints, angle, velocity):
     """Display the ball release/peak/contact.
     Display the launch velocity and release angle."""
-    cv2.circle(frame, keypoints[0], RADIUS, (0, 0, 255), 2)
-    cv2.circle(frame, keypoints[1], RADIUS, (0, 0, 255), 2)
+    cv2.circle(frame, keypoints[0], RADIUS, RED, 2)
+    cv2.circle(frame, keypoints[1], RADIUS, RED, 2)
     cv2.putText(frame, f"Launch angle: {round(angle, 1)}deg",
-                (550, 400), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
+                (550, 400), cv2.FONT_HERSHEY_SIMPLEX, 0.75, GOLD, 2)
     cv2.putText(frame, f"Velocity: {round(velocity, 1)}m/s",
-                (550, 450), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
+                (550, 450), cv2.FONT_HERSHEY_SIMPLEX, 0.75, GOLD, 2)
     cv2.imshow("Ball positions", frame)
     cv2.waitKey(0)
 
@@ -229,8 +230,6 @@ def track_ball(cap, initial_frame, tracker, bbox):
     """
     shot_data = []
     inaccuracy_count = 0
-    redetection_count = 0
-    inaccuracy_tolerance = 10
 
     ok = tracker.init(initial_frame, bbox)
     if not ok:
@@ -243,16 +242,15 @@ def track_ball(cap, initial_frame, tracker, bbox):
             break
 
         ok, bbox = tracker.update(frame)
-
         if not valid_tracker_box(frame, bbox):
             inaccuracy_count += 1
         else:
             inaccuracy_count = 0
 
-        if inaccuracy_count >= inaccuracy_tolerance:
+        if inaccuracy_count >= INACCURACY_TOLERANCE:
             print(
                 f"Tracking failure detected on frame {cap.get(cv2.CAP_PROP_POS_FRAMES)}")
-            shot_data = shot_data[:-inaccuracy_tolerance]
+            shot_data = shot_data[:-INACCURACY_TOLERANCE]
             current_frame = cap.get(cv2.CAP_PROP_POS_FRAMES)
 
             redetect_frames, bbox = detect_ball(cap)
@@ -266,15 +264,13 @@ def track_ball(cap, initial_frame, tracker, bbox):
             tracker = cv2.TrackerCSRT_create()
             tracker.init(frame, bbox)
             inaccuracy_count = 0
-            redetection_count += 1
 
         shot_data.append(
             (int(bbox[0] + (bbox[2]/2)), int(bbox[1] + (bbox[2]/2))))
         p1 = (int(bbox[0]), int(bbox[1]))
         p2 = (int(bbox[0] + bbox[2]), int(bbox[1] + bbox[3]))
-        cv2.rectangle(frame, p1, p2, (255, 0, 0), 2, 1)
+        cv2.rectangle(frame, p1, p2, (0, 255, 0), 2, 1)
         cv2.imshow("Tracking", frame)
-
     return shot_data
 
 
@@ -290,13 +286,14 @@ def main(video_path):
     cap = cv2.VideoCapture(video_path)
     frame_rate = cap.get(cv2.CAP_PROP_FPS)
 
-    detection_frames, bbox = detect_ball(cap)
+    n_detection_frames, bbox = detect_ball(cap)
+    # Can be used to manually detect the ball
     # bbox = cv2.selectROI("Select", initial_frame)
     if not bbox:
         print("Error detecting ball")
         return
 
-    cap.set(cv2.CAP_PROP_POS_FRAMES, detection_frames - 1)
+    cap.set(cv2.CAP_PROP_POS_FRAMES, n_detection_frames - 1)
     ok, initial_frame = cap.read()
     if not ok:
         print("Error reading inital frame")
@@ -320,4 +317,4 @@ def main(video_path):
 
 
 if __name__ == "__main__":
-    main(video_path="./Data/FTNash.mp4")
+    main(video_path="./Data/FTVikas5.mp4")

@@ -1,3 +1,9 @@
+"""
+Author: Vikas Shenoy
+Helper functions for detecting a ball and performing convrsions
+between different OpenCV objects.
+"""
+
 import cv2
 import numpy as np
 import math
@@ -93,7 +99,16 @@ def contour_centroid_color(frame, contour):
 
 
 def bbox_center_color(frame, bbox):
-    """."""
+    """Find the color at the center of a box.
+
+    Args:
+        frame: image matrix.
+        bbox: co-ordinates of the box.
+
+    Returns:
+        Color in HSV color space.
+
+    """
     x, y, w, h = bbox
     x1 = int(x + w)
     y1 = int(y + h)

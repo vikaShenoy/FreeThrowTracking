@@ -1,11 +1,14 @@
-"""Detect a basketball in an image. First step in ball tracking."""
+"""
+Author: Vikas Shenoy
+Detects a basketball in an image using feature-based filtering of contours and 
+hough circle detection. First step in ball tracking.
+"""
 
 import cv2
 import numpy as np
 import math
 
 import Utility.Util as Util
-# import Util as Util
 
 # Hough parameter constants
 CANNY_THRESH = 100
@@ -24,10 +27,12 @@ MIN_CIRCLE_AREA = (math.pi * (MIN_CIRCLE_RADIUS ** 2))
 MAX_CIRCLE_AREA = (math.pi * (MAX_CIRCLE_RADIUS ** 2))
 
 # HSV ranges
-# MIN_HSV = [0, 60, 60]
 MIN_HSV = [0, 130, 40]
 MAX_HSV = [180, 230, 120]
 
+GOLD = (0, 204, 255)
+
+# Adding tolerance around the ball helps tracker stay locked on.
 BOX_PADDING = 15
 
 
@@ -85,7 +90,7 @@ def hough_detector(frame):
             contour = Util.circle_to_contour(circle)
             valid = valid_contour(frame, contour)
             if valid:
-                cv2.drawContours(frame, [contour], -1, (255, 0, 0), 2)
+                cv2.drawContours(frame, [contour], -1, GOLD, 2)
                 show(frame)
                 return Util.circle_to_box(circle, padding=BOX_PADDING)
 
@@ -115,7 +120,7 @@ def contour_detector(frame):
     for contour in contours:
         valid = valid_contour(frame, contour)
         if valid:
-            cv2.drawContours(frame, [contour], -1, (255, 0, 0), 2)
+            cv2.drawContours(frame, [contour], -1, GOLD, 2)
             show(frame)
             (x, y), r = Util.contour_to_circle(contour)
             return Util.circle_to_box((x, y, r), BOX_PADDING)
@@ -190,6 +195,12 @@ def valid_contour(frame, contour):
     return True
 
 
+def show(img):
+    """Debug function to show opencv2 images."""
+    cv2.imshow("Test", img)
+    cv2.waitKey(0)
+
+
 def detect_ball(cap):
     """Take in a video and read frames until a valid basketball is detected.
 
@@ -206,42 +217,21 @@ def detect_ball(cap):
     valid_contours = []
     frame_num = 0
 
-    # cap = skip(cap, 10)
-
     while True:
         ok, frame = cap.read()
+        # show(frame)
         frame_num += 1
         if not ok:
             return 0, None
 
-        bbox = hough_detector(frame)
-        if bbox:
+        hough_bbox = hough_detector(frame)
+        if hough_bbox:
             print(f"Hough successful on frame {frame_num}")
-            return frame_num, bbox
+            return frame_num, hough_bbox
 
-        bbox = contour_detector(frame)
-        if bbox:
+        contour_bbox = contour_detector(frame)
+        if contour_bbox:
             print(f"Contour successful on frame {frame_num}")
-            return frame_num, bbox
+            return frame_num, contour_bbox
 
         print(f"No ball detected on frame: {frame_num}")
-
-
-def show(img):
-    """Debug function to show opencv2 images."""
-    cv2.imshow("Test", img)
-    cv2.waitKey(0)
-
-
-def skip(cap, n):
-    """Debug function to skip a video ahead n frames."""
-    for i in range(n):
-        ok, frame = cap.read()
-    return cap
-
-
-if __name__ == "__main__":
-    filepath = "./Data/FTVikas3.mp4"
-    cap = cv2.VideoCapture(filepath)
-    bbox = detect_ball(cap)
-    print(f"Bbox: {bbox}")
