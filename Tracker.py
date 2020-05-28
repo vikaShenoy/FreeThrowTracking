@@ -10,6 +10,7 @@ import cv2
 import numpy as np
 import copy
 import math
+import sys
 
 from Utility.BallDetection import detect_ball, show, valid_tracker_box
 
@@ -317,4 +318,5 @@ def main(video_path):
 
 
 if __name__ == "__main__":
-    main(video_path="./Data/FTVikas5.mp4")
+    filepath = sys.argv[1]
+    main(video_path=filepath)
